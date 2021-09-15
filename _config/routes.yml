@@ -1,0 +1,6 @@
+---
+name: silverstripe-xero#routes
+---
+SilverStripe\Control\Director:
+  rules:
+    'connectXero//$Action/$ID': 'FullscreenInteractive\SilverStripeXero\XeroController'

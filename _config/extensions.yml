@@ -1,0 +1,6 @@
+---
+name: silverstripe-xero#extensions
+---
+SilverStripe\SiteConfig\SiteConfig:
+  extensions:
+    - FullscreenInteractive\SilverStripeXero\XeroSiteConfigExtension
