@@ -30,23 +30,23 @@ class XeroSiteConfigExtension extends DataExtension
         $fields->addFieldsToTab('Root.Xero', [
             ReadonlyField::create('XeroAccessToken', 'Access token')
                 ->setDescription(sprintf(
-                    '<a href="%s">Link to a xero account</a>',
+                    '<a href="%s" target="_blank">Link to a new xero account</a>',
                     XeroFactory::singleton()->getRedirectUri()
                 ))
         ]);
 
         if ($this->owner->XeroAccessToken) {
-            $provider = XeroFactory::singleton()->getProvider();
             $tenants = [];
+            $tenantRecords = XeroFactory::singleton()->getTenants($this->owner->XeroAccessToken);
 
-            foreach ($provider->getTenants($this->owner->XeroAccessToken) as $tenant) {
-                $tenants[$tenant->id] = $tenant->name;
+            foreach ($tenantRecords as $tenant) {
+                $tenants[$tenant->id] = $tenant->tenantName;
             }
 
             $fields->addFieldsToTab('Root.Xero', [
                 DropdownField::create(
                     'XeroTenantId',
-                    'XeroTenantId',
+                    'Xero Tenant',
                     $tenants
                 )
             ]);
