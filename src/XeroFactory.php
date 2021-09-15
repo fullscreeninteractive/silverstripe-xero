@@ -18,6 +18,11 @@ class XeroFactory
     protected $application;
 
     /**
+     * @var \Calcinai\OAuth2\Client\XeroTenant[]
+     */
+    protected $tenants = [];
+
+    /**
      * Setup
      */
     public function setupApplication()
@@ -37,6 +42,7 @@ class XeroFactory
             $config->XeroRefreshToken = $refresh;
         }
 
+        $this->tenants = $provider->getTenants($newAccessToken);
         $config->write();
     }
 
@@ -73,5 +79,17 @@ class XeroFactory
             Director::absoluteBaseURL(),
             'connectXero'
         );
+    }
+
+    /**
+     * @return \Calcinai\OAuth2\Client\XeroTenant[]
+     */
+    public function getTenants()
+    {
+        if (!$this->application) {
+            $this->setupApplication();
+        }
+
+        return $this->tenants;
     }
 }
