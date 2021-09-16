@@ -9,6 +9,8 @@ use SilverStripe\SiteConfig\SiteConfig;
 
 class XeroController extends Controller
 {
+    private static $scope = 'openid offline_access email profile accounting.contacts accounting.contacts.read accounting.transactions accounting.transactions.read';
+
     public function index()
     {
         $url = self::join_links(Director::absoluteBaseURL() . 'xero');
@@ -16,9 +18,11 @@ class XeroController extends Controller
         $provider = XeroFactory::singleton()->getProvider();
 
         if (!isset($_GET['code'])) {
+            $scope = $this->config()->get('scope');
+
             // If we don't have an authorization code then get one
             $authUrl = $provider->getAuthorizationUrl([
-                'scope' => 'openid offline_access email profile accounting.contacts accounting.transactions'
+                'scope' => $scope
             ]);
 
             $_SESSION['oauth2state'] = $provider->getState();
@@ -50,7 +54,7 @@ class XeroController extends Controller
             $tenants = $provider->getTenants($token);
 
             foreach ($tenants as $tenant) {
-                $id = $tenant->id;
+                $id = $tenant->tenantId;
 
                 $obj->XeroTenantId = $id;
                 $obj->write();

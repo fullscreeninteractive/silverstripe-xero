@@ -13,8 +13,10 @@ class XeroSiteConfigExtension extends DataExtension
 {
     private static $db = [
         'XeroTenantId' => 'Varchar(200)',
-        'XeroAccessToken' => 'Varchar(200)',
-        'XeroRefreshToken' => 'Varchar(200)'
+        'XeroAccessToken' => 'Text',
+        'XeroRefreshToken' => 'Text',
+        'XeroTokenRefreshExpires' => 'Datetime',
+        'XeroTenants' => 'Text'
     ];
 
     public function updateCMSFields(FieldList $fields)
@@ -40,7 +42,7 @@ class XeroSiteConfigExtension extends DataExtension
             $tenantRecords = XeroFactory::singleton()->getTenants($this->owner->XeroAccessToken);
 
             foreach ($tenantRecords as $tenant) {
-                $tenants[$tenant->id] = $tenant->tenantName;
+                $tenants[$tenant->tenantId] = $tenant->tenantName;
             }
 
             $fields->addFieldsToTab('Root.Xero', [

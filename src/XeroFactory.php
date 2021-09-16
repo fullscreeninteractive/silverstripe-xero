@@ -29,21 +29,34 @@ class XeroFactory
     {
         $provider = $this->getProvider();
         $config = SiteConfig::current_site_config();
-
-        $newAccessToken = $provider->getAccessToken('refresh_token', [
-            'refresh_token' => $config->XeroRefreshToken
-        ]);
-
-        $config->XeroAccessToken = $newAccessToken->getToken();
-
-        $refresh = $newAccessToken->getRefreshToken();
+        $refresh = !$config->XeroTokenRefreshExpires || $config->dbObject('XeroTokenRefreshExpires')->InPast();
 
         if ($refresh) {
-            $config->XeroRefreshToken = $refresh;
+            $newAccessToken = $provider->getAccessToken('refresh_token', [
+                'refresh_token' => $config->XeroRefreshToken
+            ]);
+
+            $accessToken = $newAccessToken->getToken();
+            $refreshToken = $newAccessToken->getRefreshToken();
+
+            $config->XeroRefreshToken = $refreshToken;
+            $config->XeroAccessToken = $accessToken;
+            $config->XeroTokenRefreshExpires = $newAccessToken->getExpires();
+
+            $this->tenants = $provider->getTenants($newAccessToken);
+
+            $config->XeroTenants = serialize($this->tenants);
+            $config->write();
+        } else {
+            $accessToken = $config->XeroAccessToken;
+
+            $this->tenants = unserialize($config->XeroTenants);
         }
 
-        $this->tenants = $provider->getTenants($newAccessToken);
-        $config->write();
+        $this->application = new \XeroPHP\Application(
+            $accessToken,
+            $config->XeroTenantId
+        );
     }
 
     /**
