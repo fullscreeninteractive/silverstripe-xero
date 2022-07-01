@@ -1,0 +1,13 @@
+SilverStripe\Core\Injector\Injector:
+  Symbiote\QueuedJobs\Services\QueuedJobService:
+    properties:
+      defaultJobs:
+        RefreshXeroToken:
+          type: 'FullscreenInteractive\SilverStripeXero\RefreshXeroTokenJob'
+          filter:
+            JobTitle: 'Refresh Xero token'
+          construct:
+            title: 'Refresh Xero token'
+          startDateFormat: 'Y-m-d H:i:s'
+          startTimeString: 'next week 00:01'
+          recreate: 1

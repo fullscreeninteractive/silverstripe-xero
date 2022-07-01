@@ -31,11 +31,27 @@ class XeroSiteConfigExtension extends DataExtension
             return;
         }
 
+        $unlink = '';
+
+        if ($this->owner->XeroAccessToken) {
+            $unlink = sprintf(
+                ' or <a href="%s"><small class="alert-danger">Unlink xero account</small></a>',
+                XeroFactory::singleton()->getUnlinkUri()
+            );
+        }
+
+        $token = $this->owner->XeroAccessToken;
+
+        if (!$token) {
+            $token = 'No account linked ';
+        }
+
         $fields->addFieldsToTab('Root.Xero', [
-            ReadonlyField::create('XeroAccessToken', 'Access token')
+            ReadonlyField::create('XeroAccess', 'Access token', substr($token, 0, 20).'....')
                 ->setDescription(sprintf(
-                    '<a href="%s" target="_blank">Link to a new xero account</a>',
-                    XeroFactory::singleton()->getRedirectUri()
+                    '<a href="%s" target="_blank">Link to a new xero account</a>%s',
+                    XeroFactory::singleton()->getRedirectUri(),
+                    $unlink
                 ))
         ]);
 
@@ -44,15 +60,16 @@ class XeroSiteConfigExtension extends DataExtension
 
             try {
                 $tenantRecords = XeroFactory::singleton()->getTenants($this->owner->XeroAccessToken);
-
-                foreach ($tenantRecords as $tenant) {
-                    $tenants[$tenant->tenantId] = $tenant->tenantName;
+                if ($tenantRecords) {
+                    foreach ($tenantRecords as $tenant) {
+                        $tenants[$tenant->tenantId] = $tenant->tenantName;
+                    }
                 }
 
                 $fields->addFieldsToTab('Root.Xero', [
                     DropdownField::create(
                         'XeroTenantId',
-                        'Xero Tenant',
+                        'Xero tenant',
                         $tenants
                     )
                 ]);
@@ -62,6 +79,14 @@ class XeroSiteConfigExtension extends DataExtension
                     'An error has occured connecting to xero: '. $e->getMessage()
                 ));
             }
+
+            $fields->addFieldsToTab('Root.Xero', [
+                ReadonlyField::create(
+                    'XeroTokenRefreshExpires',
+                    'Xero token expires',
+                    $this->owner->XeroTokenRefreshExpires
+                )->setDescription('Token will be refreshed automatically when it expires via a queued jobs')
+            ]);
         }
     }
 }

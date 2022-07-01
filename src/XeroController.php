@@ -3,18 +3,21 @@
 namespace FullscreenInteractive\SilverStripeXero;
 
 use SilverStripe\Control\Controller;
-use SilverStripe\Control\Director;
 use SilverStripe\Security\Permission;
+use SilverStripe\Security\SecurityToken;
 use SilverStripe\SiteConfig\SiteConfig;
 
 class XeroController extends Controller
 {
     private static $scope = 'openid offline_access email profile accounting.contacts accounting.contacts.read accounting.transactions accounting.transactions.read';
 
+    private static $allowed_actions = [
+        'index',
+        'unlink'
+    ];
+
     public function index()
     {
-        $url = self::join_links(Director::absoluteBaseURL() . 'xero');
-
         $provider = XeroFactory::singleton()->getProvider();
 
         if (!isset($_GET['code'])) {
@@ -41,26 +44,65 @@ class XeroController extends Controller
                 return $this->httpError(401);
             }
 
-            $obj = SiteConfig::current_site_config();
-            $obj->XeroAccessToken = $token->getToken();
+            $config = SiteConfig::current_site_config();
+            $config->XeroAccessToken = $token->getToken();
 
             $refresh = $token->getRefreshToken();
 
             if ($refresh) {
-                $obj->XeroRefreshToken = $refresh;
+                $config->XeroRefreshToken = $refresh;
+                $config->XeroTokenRefreshExpires = $token->getExpires();
+            } else {
+                $config->XeroRefreshToken = null;
+                $config->XeroTokenRefreshExpires = null;
             }
 
-            $obj->write();
             $tenants = $provider->getTenants($token);
 
-            foreach ($tenants as $tenant) {
-                $id = $tenant->tenantId;
+            $config->XeroTenants = serialize($tenants);
+            $config->write();
 
-                $obj->XeroTenantId = $id;
-                $obj->write();
+            if ($tenants) {
+                $id = null;
 
-                return $this->redirect('admin/settings/?doneGlobal=1');
+                foreach ($tenants as $tenant) {
+                    $id = $tenant->tenantId;
+
+                    if (!$config->XeroTenantId) {
+                        $config->XeroTenantId = $id;
+                        $config->write();
+
+                        return $this->redirect('admin/settings/?connectedXeroTo='. $id. '#Root_Xero');
+                    }
+                }
+
+                if ($id) {
+                    $config->XeroTenantId = $id;
+                    $config->write();
+
+                    return $this->redirect('admin/settings/?connectedXeroTo='. $id . '#Root_Xero');
+                }
             }
+
+            return $this->redirect('admin/settings/#Root_Xero');
         }
+    }
+
+
+    public function unlink()
+    {
+        if (!SecurityToken::inst()->checkRequest($this->request)) {
+            return $this->httpError(400);
+        }
+
+        $config = SiteConfig::current_site_config();
+        $config->XeroTenantId = null;
+        $config->XeroTenants = null;
+        $config->XeroTokenRefreshExpires = null;
+        $config->XeroRefreshToken = null;
+        $config->XeroAccessToken = null;
+        $config->write();
+
+        return $this->redirect('admin/settings/#Root_Xero');
     }
 }

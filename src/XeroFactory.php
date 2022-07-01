@@ -2,11 +2,14 @@
 
 namespace FullscreenInteractive\SilverStripeXero;
 
+use Calcinai\OAuth2\Client\Provider\Xero;
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\Director;
 use SilverStripe\Core\Environment;
 use SilverStripe\Core\Injector\Injectable;
+use SilverStripe\Security\SecurityToken;
 use SilverStripe\SiteConfig\SiteConfig;
+use XeroPHP\Application;
 
 class XeroFactory
 {
@@ -22,36 +25,13 @@ class XeroFactory
      */
     protected $tenants = [];
 
-    /**
-     * Setup
-     */
+
     public function setupApplication()
     {
-        $provider = $this->getProvider();
         $config = SiteConfig::current_site_config();
-        $refresh = !$config->XeroTokenRefreshExpires || $config->dbObject('XeroTokenRefreshExpires')->InPast();
+        $accessToken = $config->XeroAccessToken;
 
-        if ($refresh) {
-            $newAccessToken = $provider->getAccessToken('refresh_token', [
-                'refresh_token' => $config->XeroRefreshToken
-            ]);
-
-            $accessToken = $newAccessToken->getToken();
-            $refreshToken = $newAccessToken->getRefreshToken();
-
-            $config->XeroRefreshToken = $refreshToken;
-            $config->XeroAccessToken = $accessToken;
-            $config->XeroTokenRefreshExpires = $newAccessToken->getExpires();
-
-            $this->tenants = $provider->getTenants($newAccessToken);
-
-            $config->XeroTenants = serialize($this->tenants);
-            $config->write();
-        } else {
-            $accessToken = $config->XeroAccessToken;
-
-            $this->tenants = unserialize($config->XeroTenants);
-        }
+        $this->tenants = unserialize($config->XeroTenants);
 
         $this->application = new \XeroPHP\Application(
             $accessToken,
@@ -59,10 +39,33 @@ class XeroFactory
         );
     }
 
-    /**
-     * @return \XeroPHP\Application
-     */
-    public function getApplication()
+
+    public function renewToken()
+    {
+        $provider = $this->getProvider();
+        $config = SiteConfig::current_site_config();
+
+        $newAccessToken = $provider->getAccessToken('refresh_token', [
+            'refresh_token' => $config->XeroRefreshToken
+        ]);
+
+        $accessToken = $newAccessToken->getToken();
+        $refreshToken = $newAccessToken->getRefreshToken();
+
+        $config->XeroRefreshToken = $refreshToken;
+        $config->XeroAccessToken = $accessToken;
+        $config->XeroTokenRefreshExpires = $newAccessToken->getExpires();
+
+        $this->tenants = $provider->getTenants($newAccessToken);
+
+        $config->XeroTenants = serialize($this->tenants);
+        $config->write();
+
+        return $config->XeroTokenRefreshExpires;
+    }
+
+
+    public function getApplication(): ?Application
     {
         if (!$this->application) {
             $this->setupApplication();
@@ -71,10 +74,8 @@ class XeroFactory
         return $this->application;
     }
 
-    /**
-     * @return \Calcinai\OAuth2\Client\Provider\Xero
-     */
-    public function getProvider()
+
+    public function getProvider(): Xero
     {
         return new \Calcinai\OAuth2\Client\Provider\Xero([
             'clientId'          => Environment::getEnv('XERO_CLIENT_ID'),
@@ -83,16 +84,26 @@ class XeroFactory
         ]);
     }
 
-    /**
-     * @return string
-     */
-    public function getRedirectUri()
+
+    public function getRedirectUri(): string
     {
         return Controller::join_links(
             Director::absoluteBaseURL(),
             'connectXero'
         );
     }
+
+
+    public function getUnlinkUri(): string
+    {
+        $token = SecurityToken::inst()->getSecurityID();
+
+        return Controller::join_links(
+            Director::absoluteBaseURL(),
+            'connectXero/unlink?SecurityID='. $token
+        );
+    }
+
 
     /**
      * @return \Calcinai\OAuth2\Client\XeroTenant[]
