@@ -9,5 +9,5 @@ SilverStripe\Core\Injector\Injector:
           construct:
             title: 'Refresh Xero token'
           startDateFormat: 'Y-m-d H:i:s'
-          startTimeString: 'next week 00:01'
+          startTimeString: '+10 minutes'
           recreate: 1
